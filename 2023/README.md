@@ -2,5 +2,5 @@
 
 Command to create new day: 
 ```
-./new-day.ps1 24
+./new_day.ps1 24
 ```

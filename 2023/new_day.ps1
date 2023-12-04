@@ -13,7 +13,7 @@ if($day_no.Length -eq 1) {
 
 $dayPath = $pwd.Path + "\day" + $day_no
 
-cp -r 'day_template/' $dayPath;
+cp -r 'new_day_template/' $dayPath;
 
 
 Get-ChildItem $dayPath -Recurse -include *.* | ForEach-Object {
