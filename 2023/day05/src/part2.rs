@@ -1,3 +1,6 @@
+use std::cmp;
+
+#[derive(Debug, Clone, Copy)]
 struct ConverterEntry {
     start_range: u64,
     end_range: u64,
@@ -17,8 +20,11 @@ impl ConverterEntry {
             modifier: values[0] as i64 - values[1] as i64,
         }
     }
-    fn convert(&self, value: &u64) -> u64 {
-        (self.modifier + (*value as i64)).try_into().unwrap()
+    fn convert(&self, value: &(u64, u64)) -> (u64, u64) {
+        (
+            (cmp::max(self.start_range, value.0) as i64 + self.modifier) as u64,
+            (cmp::min(self.end_range, value.1) as i64 + self.modifier) as u64,
+        )
     }
 }
 
@@ -28,22 +34,57 @@ struct SingleConverter {
 
 impl SingleConverter {
     fn from(input: &str) -> Self {
+        let mut input_converters = input
+            .lines()
+            .map(|line| ConverterEntry::from(line))
+            .collect::<Vec<_>>();
+        input_converters.sort_by(|a, b| a.start_range.cmp(&b.start_range));
+
+        let mut all_converters: Vec<ConverterEntry> = vec![];
+
+        if input_converters[0].start_range > 0 {
+            all_converters.push(ConverterEntry {
+                start_range: 0,
+                end_range: input_converters[0].start_range - 1,
+                modifier: 0,
+            });
+        }
+        all_converters.push(input_converters[0]);
+
+        let mut i = 0;
+        while i < input_converters.len() - 1 {
+            if input_converters[i].end_range + 1 < input_converters[i + 1].start_range - 1 {
+                all_converters.push(ConverterEntry {
+                    start_range: input_converters[i].end_range + 1,
+                    end_range: input_converters[i + 1].start_range - 1,
+                    modifier: 0,
+                });
+            }
+            all_converters.push(input_converters[i + 1]);
+
+            i += 1;
+        }
+
+        all_converters.push(ConverterEntry {
+            start_range: input_converters.last().unwrap().end_range + 1,
+            end_range: u64::MAX,
+            modifier: 0,
+        });
+
         SingleConverter {
-            converters: input
-                .lines()
-                .map(|line| ConverterEntry::from(line))
-                .collect::<Vec<_>>(),
+            converters: all_converters,
         }
     }
-    fn convert(&self, value: &u64) -> u64 {
-        match self
-            .converters
+    fn convert(&self, value: &(u64, u64)) -> Vec<(u64, u64)> {
+        self.converters
             .iter()
-            .find(|i| i.start_range <= (*value) && i.end_range >= (*value))
-        {
-            Some(converter) => converter.convert(value),
-            None => *value,
-        }
+            .filter(|converter| {
+                (converter.start_range <= value.0 && converter.end_range >= value.0)
+                    || (converter.start_range <= value.1 && converter.end_range >= value.1)
+                    || (converter.start_range >= value.0 && converter.end_range <= value.1)
+            })
+            .map(|converter| converter.convert(value))
+            .collect::<Vec<_>>()
     }
 }
 
@@ -59,32 +100,24 @@ pub fn process(input: &str) -> u64 {
             _ => None,
         })
         .collect::<Vec<_>>();
-    let mut seeds = Vec::default();
+    let mut seed_ranges: Vec<(u64, u64)> = Vec::default();
     let mut i = 0;
     while i < seed_data.len() {
-        println!(
-            "appending seed data: {} {} ",
-            seed_data[i],
-            seed_data[i + 1]
-        );
-        seeds.append(&mut ((seed_data[i]..seed_data[i] + seed_data[i + 1]).collect::<Vec<_>>()));
+        seed_ranges.push((seed_data[i], seed_data[i] + seed_data[i + 1]));
         i += 2;
     }
-
-    println!("seeds length: {}", seeds.len());
 
     for map_data in maps.split("\n\n") {
         let (_, data) = map_data.split_once("\n").unwrap();
         let converter = SingleConverter::from(data);
-        println!("converting");
 
-        seeds = seeds
+        seed_ranges = seed_ranges
             .iter()
-            .map(|seed| converter.convert(seed))
+            .flat_map(|seed| converter.convert(seed))
             .collect::<Vec<_>>();
     }
 
-    let min = seeds.iter().min().unwrap();
+    let min = seed_ranges.iter().map(|(left, _)| left).min().unwrap();
     return *min;
 }
 
