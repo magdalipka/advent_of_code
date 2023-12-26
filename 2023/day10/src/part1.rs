@@ -60,11 +60,7 @@ fn follow_pipe(
 pub fn process(input: &str) -> usize {
     let pipes = input
         .lines()
-        .map(|line| {
-            line.chars()
-                // .map(|c| (c, None::<usize>))
-                .collect::<Vec<_>>()
-        })
+        .map(|line| line.chars().collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
     let mut start_y = 0;
@@ -107,7 +103,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn first_case() {
         let input = "-L|F7
 7S-7|
